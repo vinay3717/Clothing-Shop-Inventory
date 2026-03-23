@@ -5,6 +5,7 @@ require('dotenv').config();
 require('./config/db');
 
 const authRoutes = require('./routes/auth');
+const itemRoutes = require('./routes/items');
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/auth', authRoutes);
+app.use('/api/items', itemRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Clothing Inventory API running' });
