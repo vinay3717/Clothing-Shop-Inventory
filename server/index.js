@@ -4,8 +4,12 @@ require('dotenv').config();
 
 require('./config/db');
 
-const authRoutes = require('./routes/auth');
-const itemRoutes = require('./routes/items');
+const authRoutes     = require('./routes/auth');
+const itemRoutes     = require('./routes/items');
+const customerRoutes = require('./routes/customers');
+const billRoutes = require('./routes/bills');
+const paymentRoutes = require('./routes/payments');
+const reportRoutes = require('./routes/reports');
 
 const app = express();
 
@@ -13,8 +17,12 @@ app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/api/auth', authRoutes);
-app.use('/api/items', itemRoutes);
+app.use('/api/auth',      authRoutes);
+app.use('/api/items',     itemRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/bills', billRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/reports', reportRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Clothing Inventory API running' });
