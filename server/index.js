@@ -10,6 +10,8 @@ const customerRoutes = require('./routes/customers');
 const billRoutes = require('./routes/bills');
 const paymentRoutes = require('./routes/payments');
 const reportRoutes = require('./routes/reports');
+const supplierRoutes = require('./routes/suppliers');
+const purchaseRoutes = require('./routes/purchases');
 
 const app = express();
 
@@ -23,6 +25,8 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/bills', billRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/suppliers', supplierRoutes);
+app.use('/api/purchases', purchaseRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Clothing Inventory API running' });
