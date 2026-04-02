@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 const Dashboard = () => {
+  const [purchaseData, setPurchaseData] = useState(null);
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -17,18 +18,29 @@ const Dashboard = () => {
   const navigate              = useNavigate();
 
   useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const res = await api.get('/reports/dashboard');
-        setData(res.data.dashboard);
-      } catch (err) {
-        toast.error('Failed to load dashboard');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDashboard();
-  }, []);
+  const fetchDashboard = async () => {
+    try {
+      const res = await api.get('/reports/dashboard');
+      setData(res.data.dashboard);
+    } catch (err) {
+      toast.error('Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPurchases = async () => {
+    try {
+      const res = await api.get('/purchases/stats/summary');
+      setPurchaseData(res.data.summary);
+    } catch (err) {
+      console.error('Purchase summary error');
+    }
+  };
+
+  fetchDashboard();
+  fetchPurchases();
+}, []);
 
   const handleLogout = () => {
     logout();
@@ -95,7 +107,7 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
 
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-3">
@@ -110,7 +122,7 @@ const Dashboard = () => {
 
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-gray-500">This Month</span>
+              <span className="text-sm text-gray-500">This Month Sales</span>
               <div className="bg-blue-100 p-2 rounded-xl">
                 <IndianRupee size={18} className="text-blue-600" />
               </div>
@@ -128,6 +140,32 @@ const Dashboard = () => {
             </div>
             <p className="text-2xl font-bold text-red-500">₹{Number(data?.total_pending || 0).toLocaleString()}</p>
             <p className="text-xs text-gray-400 mt-1">Across all customers</p>
+          </div>
+
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm text-gray-500">This Month Spent</span>
+              <div className="bg-orange-100 p-2 rounded-xl">
+                <Package size={18} className="text-orange-500" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-gray-800">₹{Number(purchaseData?.this_month?.total_spent || 0).toLocaleString()}</p>
+            <p className="text-xs text-gray-400 mt-1">{purchaseData?.this_month?.total_purchases || 0} purchases</p>
+          </div>
+
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm text-gray-500">Net Profit (Month)</span>
+              <div className="bg-emerald-100 p-2 rounded-xl">
+                <TrendingUp size={18} className="text-emerald-600" />
+              </div>
+            </div>
+            <p className={`text-2xl font-bold ${Number(purchaseData?.profit?.net_profit || 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+              ₹{Number(purchaseData?.profit?.net_profit || 0).toLocaleString()}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Revenue ₹{Number(purchaseData?.profit?.revenue || 0).toLocaleString()} · Cost ₹{Number(purchaseData?.profit?.cost || 0).toLocaleString()}
+            </p>
           </div>
 
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -225,7 +263,74 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
+              {/* Purchases & Profit Section */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
 
+  {/* Recent Purchases */}
+  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-4">
+      <Package size={18} className="text-orange-500" /> Recent Purchases
+    </h3>
+    {!purchaseData?.recent_purchases?.length ? (
+      <p className="text-gray-400 text-sm text-center py-4">No purchases recorded yet</p>
+    ) : (
+      <div className="space-y-3">
+        {purchaseData.recent_purchases.map(p => (
+          <div key={p.purchase_id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+            <div>
+              <p className="font-medium text-gray-800 text-sm">
+                {p.supplier_name || 'Unknown Supplier'}
+              </p>
+              <p className="text-xs text-gray-400">
+                {new Date(p.purchase_date).toLocaleDateString('en-IN')}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-bold text-gray-800 text-sm">₹{Number(p.total_amount).toLocaleString()}</p>
+              {Number(p.pending_due) > 0
+                ? <span className="text-xs text-red-500">Due: ₹{Number(p.pending_due).toLocaleString()}</span>
+                : <span className="text-xs text-green-500">Paid ✓</span>
+              }
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+
+  {/* Item Profit Margins */}
+  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-4">
+      <TrendingUp size={18} className="text-emerald-500" /> Profit Per Item
+    </h3>
+    {!purchaseData?.item_profits?.length ? (
+      <p className="text-gray-400 text-sm text-center py-4">Add cost price to items to see profit margins</p>
+    ) : (
+      <div className="space-y-3">
+        {purchaseData.item_profits.slice(0, 5).map(item => (
+          <div key={item.item_id} className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-gray-800 text-sm truncate">{item.name}</p>
+              <p className="text-xs text-gray-400">
+                Cost ₹{Number(item.cost_price).toLocaleString()} → 
+                Sell ₹{Number(item.selling_price).toLocaleString()}
+              </p>
+            </div>
+            <div className="text-right ml-3">
+              <p className="font-bold text-emerald-600 text-sm">
+                +₹{Number(item.profit_per_unit).toLocaleString()}
+              </p>
+              <span className="text-xs bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">
+                {item.profit_margin_pct}%
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+
+</div>
           </div>
         </div>
 
