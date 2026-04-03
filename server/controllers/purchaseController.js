@@ -191,5 +191,69 @@ const getPurchaseSummary = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+// POST /api/purchases/:id/pay — record payment to supplier
+const paySupplier = async (req, res) => {
+  const { amount, method, notes } = req.body;
 
-module.exports = { getAllPurchases, getPurchaseById, createPurchase, getPurchaseSummary };
+  if (!amount || Number(amount) <= 0)
+    return res.status(400).json({ success: false, message: 'Valid amount required' });
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // Get purchase
+    const [purchases] = await conn.query(
+      `SELECT * FROM purchases WHERE purchase_id = ?`,
+      [req.params.id]
+    );
+
+    if (purchases.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ success: false, message: 'Purchase not found' });
+    }
+
+    const purchase = purchases[0];
+
+    if (Number(amount) > Number(purchase.pending_due)) {
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Amount cannot exceed pending due of ₹${purchase.pending_due}`
+      });
+    }
+
+    // Update purchase payment
+    await conn.query(`
+      UPDATE purchases SET
+        amount_paid = amount_paid + ?,
+        pending_due = GREATEST(pending_due - ?, 0)
+      WHERE purchase_id = ?
+    `, [amount, amount, req.params.id]);
+
+    await conn.commit();
+
+    // Return updated purchase
+    const [updated] = await conn.query(`
+      SELECT p.*, s.name as supplier_name
+      FROM purchases p
+      LEFT JOIN suppliers s ON p.supplier_id = s.supplier_id
+      WHERE p.purchase_id = ?
+    `, [req.params.id]);
+
+    return res.json({
+      success: true,
+      message: 'Payment recorded successfully',
+      purchase: updated[0]
+    });
+
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  } finally {
+    conn.release();
+  }
+};
+
+module.exports = { getAllPurchases, getPurchaseById, createPurchase, getPurchaseSummary,paySupplier };

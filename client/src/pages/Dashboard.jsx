@@ -16,6 +16,10 @@ const Dashboard = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, logout }      = useAuth();
   const navigate              = useNavigate();
+  const [showSupplierPayModal, setShowSupplierPayModal] = useState(false);
+  const [payingPurchase,       setPayingPurchase]       = useState(null);
+  const [supplierPayAmount,    setSupplierPayAmount]    = useState('');
+  const [supplierPayMethod,    setSupplierPayMethod]    = useState('cash');
 
   useEffect(() => {
   const fetchDashboard = async () => {
@@ -47,6 +51,27 @@ const Dashboard = () => {
     navigate('/login');
   };
 
+  const handleSupplierPayment = async (e) => {
+  e.preventDefault();
+  if (!supplierPayAmount || Number(supplierPayAmount) <= 0) {
+    toast.error('Enter a valid amount');
+    return;
+  }
+  try {
+    await api.post(`/purchases/${payingPurchase.purchase_id}/pay`, {
+      amount: Number(supplierPayAmount),
+      method: supplierPayMethod,
+    });
+    toast.success('Supplier payment recorded!');
+    setShowSupplierPayModal(false);
+    setPayingPurchase(null);
+    // Refresh purchase data
+    const res = await api.get('/purchases/stats/summary');
+    setPurchaseData(res.data.summary);
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to record payment');
+  }
+};
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -84,6 +109,7 @@ const Dashboard = () => {
           <button className="md:hidden" onClick={() => setMenuOpen(!menuOpen)}>
             {menuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
+          <button onClick={() => navigate('/suppliers')} className="hover:text-indigo-200 font-medium">Suppliers</button>
         </div>
       </nav>
 
@@ -94,6 +120,7 @@ const Dashboard = () => {
           <button onClick={() => { navigate('/items');     setMenuOpen(false); }} className="px-6 py-3 text-left hover:bg-indigo-800">Items</button>
           <button onClick={() => { navigate('/customers'); setMenuOpen(false); }} className="px-6 py-3 text-left hover:bg-indigo-800">Customers</button>
           <button onClick={() => { navigate('/bills');     setMenuOpen(false); }} className="px-6 py-3 text-left hover:bg-indigo-800">Bills</button>
+          <button onClick={() => { navigate('/suppliers'); setMenuOpen(false); }} className="px-6 py-3 text-left hover:bg-indigo-800">Suppliers</button>
         </div>
       )}
 
@@ -267,16 +294,17 @@ const Dashboard = () => {
 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
 
   {/* Recent Purchases */}
-  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-    <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-4">
-      <Package size={18} className="text-orange-500" /> Recent Purchases
-    </h3>
-    {!purchaseData?.recent_purchases?.length ? (
-      <p className="text-gray-400 text-sm text-center py-4">No purchases recorded yet</p>
-    ) : (
-      <div className="space-y-3">
-        {purchaseData.recent_purchases.map(p => (
-          <div key={p.purchase_id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+  <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-4">
+    <Package size={18} className="text-orange-500" /> Recent Purchases
+  </h3>
+  {!purchaseData?.recent_purchases?.length ? (
+    <p className="text-gray-400 text-sm text-center py-4">No purchases recorded yet</p>
+  ) : (
+    <div className="space-y-3">
+      {purchaseData.recent_purchases.map(p => (
+        <div key={p.purchase_id} className="border border-gray-100 rounded-xl p-3">
+          <div className="flex items-center justify-between">
             <div>
               <p className="font-medium text-gray-800 text-sm">
                 {p.supplier_name || 'Unknown Supplier'}
@@ -286,17 +314,38 @@ const Dashboard = () => {
               </p>
             </div>
             <div className="text-right">
-              <p className="font-bold text-gray-800 text-sm">₹{Number(p.total_amount).toLocaleString()}</p>
-              {Number(p.pending_due) > 0
-                ? <span className="text-xs text-red-500">Due: ₹{Number(p.pending_due).toLocaleString()}</span>
-                : <span className="text-xs text-green-500">Paid ✓</span>
-              }
+              <p className="font-bold text-gray-800 text-sm">
+                ₹{Number(p.total_amount).toLocaleString()}
+              </p>
+              {Number(p.pending_due) > 0 ? (
+                <span className="text-xs text-red-500">
+                  Due: ₹{Number(p.pending_due).toLocaleString()}
+                </span>
+              ) : (
+                <span className="text-xs text-green-500">Paid ✓</span>
+              )}
             </div>
           </div>
-        ))}
-      </div>
-    )}
-  </div>
+
+          {/* Pay Supplier Button */}
+          {Number(p.pending_due) > 0 && (
+            <button
+              onClick={() => {
+                setPayingPurchase(p);
+                setSupplierPayAmount('');
+                setSupplierPayMethod('cash');
+                setShowSupplierPayModal(true);
+              }}
+              className="mt-2 w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-2"
+            >
+              <IndianRupee size={14} /> Pay Supplier · Due: ₹{Number(p.pending_due).toLocaleString()}
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  )}
+</div>
 
   {/* Item Profit Margins */}
   <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -329,6 +378,128 @@ const Dashboard = () => {
       </div>
     )}
   </div>
+  {/* Pay Supplier Modal */}
+{showSupplierPayModal && payingPurchase && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-lg font-bold text-gray-800">Pay Supplier</h3>
+        <button onClick={() => setShowSupplierPayModal(false)} className="text-gray-400 hover:text-gray-600">
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* Purchase Summary */}
+      <div className="bg-gray-50 rounded-xl p-4 mb-5">
+        <p className="font-semibold text-gray-800">
+          {payingPurchase.supplier_name || 'Unknown Supplier'}
+        </p>
+        <p className="text-sm text-gray-400 mt-0.5">
+          Purchase date: {new Date(payingPurchase.purchase_date).toLocaleDateString('en-IN')}
+        </p>
+        <div className="flex items-center justify-between mt-3">
+          <span className="text-sm text-gray-500">Total Purchase</span>
+          <span className="font-medium">₹{Number(payingPurchase.total_amount).toLocaleString()}</span>
+        </div>
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-sm text-gray-500">Already Paid</span>
+          <span className="font-medium text-green-600">₹{Number(payingPurchase.amount_paid).toLocaleString()}</span>
+        </div>
+        <div className="flex items-center justify-between mt-1 pt-2 border-t border-gray-200">
+          <span className="text-sm font-semibold text-red-500">Pending Due</span>
+          <span className="font-bold text-red-500">₹{Number(payingPurchase.pending_due).toLocaleString()}</span>
+        </div>
+      </div>
+
+      <form onSubmit={handleSupplierPayment} className="space-y-4">
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Amount Paying (₹) *
+          </label>
+          <input
+            type="number"
+            required
+            min="1"
+            max={payingPurchase.pending_due}
+            value={supplierPayAmount}
+            onChange={(e) => setSupplierPayAmount(e.target.value)}
+            placeholder={`Max: ₹${Number(payingPurchase.pending_due).toLocaleString()}`}
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+          {/* Quick fill */}
+          <div className="flex gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setSupplierPayAmount(payingPurchase.pending_due)}
+              className="text-xs bg-orange-50 text-orange-600 px-3 py-1.5 rounded-lg hover:bg-orange-100 transition"
+            >
+              Pay Full (₹{Number(payingPurchase.pending_due).toLocaleString()})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSupplierPayAmount(Math.floor(payingPurchase.pending_due / 2))}
+              className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition"
+            >
+              Pay Half (₹{Math.floor(payingPurchase.pending_due / 2).toLocaleString()})
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+          <select
+            value={supplierPayMethod}
+            onChange={(e) => setSupplierPayMethod(e.target.value)}
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="cash">Cash</option>
+            <option value="upi">UPI</option>
+            <option value="card">Card</option>
+          </select>
+        </div>
+
+        {/* Preview */}
+        {supplierPayAmount > 0 && (
+          <div className="bg-orange-50 rounded-xl p-3 text-sm">
+            <div className="flex justify-between text-gray-600">
+              <span>Paying now</span>
+              <span className="font-semibold text-orange-600">
+                ₹{Number(supplierPayAmount).toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between text-gray-600 mt-1">
+              <span>Remaining after payment</span>
+              <span className={`font-semibold ${
+                Number(payingPurchase.pending_due) - Number(supplierPayAmount) === 0
+                  ? 'text-green-600' : 'text-red-500'
+              }`}>
+                ₹{(Number(payingPurchase.pending_due) - Number(supplierPayAmount)).toLocaleString()}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-3 pt-1">
+          <button
+            type="button"
+            onClick={() => setShowSupplierPayModal(false)}
+            className="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-700 py-2.5 rounded-xl font-medium transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl font-medium transition"
+          >
+            Confirm Payment
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
 
 </div>
           </div>
