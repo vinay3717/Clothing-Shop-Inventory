@@ -7,6 +7,7 @@ import Dashboard    from './pages/Dashboard';
 import ItemsPage    from './pages/ItemsPage';
 import CustomersPage from './pages/CustomersPage';
 import BillsPage    from './pages/BillsPage';
+import SuppliersPage from './pages/SuppliersPage';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -33,6 +34,9 @@ function App() {
           <Route path="/bills" element={
             <ProtectedRoute><BillsPage /></ProtectedRoute>
           }/>
+          <Route path="/suppliers" element={
+         <ProtectedRoute><SuppliersPage /></ProtectedRoute>
+        }/>
         </Routes>
       </AuthProvider>
     </BrowserRouter>
