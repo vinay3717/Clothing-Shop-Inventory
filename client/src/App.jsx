@@ -8,6 +8,7 @@ import ItemsPage    from './pages/ItemsPage';
 import CustomersPage from './pages/CustomersPage';
 import BillsPage    from './pages/BillsPage';
 import SuppliersPage from './pages/SuppliersPage';
+import RegisterPage from './pages/RegisterPage';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -37,6 +38,7 @@ function App() {
           <Route path="/suppliers" element={
          <ProtectedRoute><SuppliersPage /></ProtectedRoute>
         }/>
+        <Route path="/register" element={<RegisterPage />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

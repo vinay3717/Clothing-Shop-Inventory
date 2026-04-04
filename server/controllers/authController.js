@@ -4,36 +4,66 @@ const jwt    = require('jsonwebtoken');
 
 const generateToken = (user) => {
   return jwt.sign(
-    { user_id: user.user_id, role: user.role, name: user.name },
+    {
+      user_id:      user.user_id,
+      role:         user.role,
+      name:         user.name,
+      shop_name:    user.shop_name,
+      shop_address: user.shop_address
+    },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN }
   );
 };
 
 // POST /api/auth/register
+// POST /api/auth/register
 const register = async (req, res) => {
-  const { name, mobile, password, role } = req.body;
+  const { name, mobile, password, shop_name, shop_address } = req.body;
 
-  if (!name || !mobile || !password) {
-    return res.status(400).json({ success: false, message: 'All fields required' });
+  if (!name || !mobile || !password || !shop_name) {
+    return res.status(400).json({
+      success: false,
+      message: 'Name, mobile, password and shop name are required'
+    });
   }
 
   try {
-    const [existing] = await db.query(
-      'SELECT user_id FROM users WHERE mobile = ?', [mobile]
+    // Check if any owner account already exists
+    const [existingOwner] = await db.query(
+      `SELECT user_id FROM users WHERE role = 'owner' LIMIT 1`
     );
-    if (existing.length > 0) {
-      return res.status(409).json({ success: false, message: 'Mobile already registered' });
+
+    if (existingOwner.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'A shop account already exists. Please login instead.'
+      });
+    }
+
+    // Check if mobile already exists
+    const [existingMobile] = await db.query(
+      `SELECT user_id FROM users WHERE mobile = ?`, [mobile]
+    );
+    if (existingMobile.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Mobile number already registered'
+      });
     }
 
     const hash = await bcrypt.hash(password, 12);
 
     await db.query(
-      'INSERT INTO users (name, mobile, password_hash, role) VALUES (?, ?, ?, ?)',
-      [name, mobile, hash, role || 'staff']
+      `INSERT INTO users (name, mobile, password_hash, role, shop_name, shop_address)
+       VALUES (?, ?, ?, 'owner', ?, ?)`,
+      [name, mobile, hash, shop_name, shop_address || null]
     );
 
-    return res.status(201).json({ success: true, message: 'Account created successfully' });
+    return res.status(201).json({
+      success: true,
+      message: 'Shop account created successfully! Please login.'
+    });
   } catch (err) {
     console.error('Register error:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
@@ -86,7 +116,8 @@ const login = async (req, res) => {
 const getMe = async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT user_id, name, mobile, role, created_at FROM users WHERE user_id = ?',
+      `SELECT user_id, name, mobile, role, shop_name, shop_address, created_at 
+       FROM users WHERE user_id = ?`,
       [req.user.user_id]
     );
     if (rows.length === 0) {
