@@ -15,6 +15,10 @@ const ItemsPage = () => {
   const [showModal,  setShowModal]  = useState(false);
   const [editItem,   setEditItem]   = useState(null);
   const [menuOpen,   setMenuOpen]   = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [units,        setUnits]        = useState([]);
+  const [summary,      setSummary]      = useState({ available: 0, sold: 0, returned: 0 });
+  const [stockLoading, setStockLoading] = useState(false);
   const [form,       setForm]       = useState({
     name: '', category: '', price: '',
     stock_qty: '', color: '', description: ''
@@ -99,6 +103,23 @@ const ItemsPage = () => {
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
+  const openStockModal = async (item) => {
+    setSelectedItem(item);
+    setStockLoading(true);
+    setUnits([]);
+    setSummary({ available: 0, sold: 0, returned: 0 });
+
+    try {
+      const res = await api.get(`/stock-units/${item.item_id}`);
+      setUnits(res.data.units || []);
+      setSummary(res.data.summary || { available: 0, sold: 0, returned: 0 });
+    } catch {
+      toast.error('Failed to load stock units');
+    } finally {
+      setStockLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
 
@@ -180,7 +201,11 @@ const ItemsPage = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {items.map(item => (
-              <div key={item.item_id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition">
+              <div
+                key={item.item_id}
+                onClick={() => openStockModal(item)}
+                className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition cursor-pointer"
+              >
 
                 {/* Category Badge */}
                 <div className="flex items-center justify-between mb-3">
@@ -201,16 +226,32 @@ const ItemsPage = () => {
                 {item.color && <p className="text-xs text-gray-400 mb-2">Color: {item.color}</p>}
                 <p className="text-xl font-bold text-indigo-600 mb-4">₹{Number(item.price).toLocaleString()}</p>
 
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openStockModal(item);
+                  }}
+                  className="w-full mb-2 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-2 rounded-xl text-sm font-medium transition"
+                >
+                  View Stock
+                </button>
+
                 {/* Actions */}
                 <div className="flex gap-2">
                   <button
-                    onClick={() => openEditModal(item)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditModal(item);
+                    }}
                     className="flex-1 flex items-center justify-center gap-1 border border-gray-200 hover:bg-gray-50 text-gray-600 py-2 rounded-xl text-sm transition"
                   >
                     <Edit2 size={14} /> Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(item.item_id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(item.item_id);
+                    }}
                     className="flex items-center justify-center border border-red-100 hover:bg-red-50 text-red-400 p-2 rounded-xl transition"
                   >
                     <Trash2 size={14} />
@@ -326,6 +367,72 @@ const ItemsPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {selectedItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl">
+            <div className="sticky top-0 bg-white rounded-t-2xl p-5 border-b flex justify-between items-center gap-4">
+              <div>
+                <h3 className="font-bold text-gray-800 text-lg">{selectedItem.name}</h3>
+                <p className="text-sm text-gray-400">Individual stock tracking</p>
+              </div>
+              <div className="flex gap-3 text-sm">
+                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium">
+                  {summary.available} available
+                </span>
+                <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full font-medium">
+                  {summary.sold} sold
+                </span>
+              </div>
+              <button onClick={() => setSelectedItem(null)} className="text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+
+            <div className="p-5 space-y-2">
+              {stockLoading ? (
+                <p className="text-sm text-gray-400">Loading stock units...</p>
+              ) : units.length === 0 ? (
+                <p className="text-sm text-gray-400">No tracked units found for this item.</p>
+              ) : (
+                units.map(unit => (
+                  <div
+                    key={unit.unit_id}
+                    className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:bg-gray-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono font-bold text-indigo-600 text-sm bg-indigo-50 px-2 py-1 rounded">
+                        {unit.serial_number}
+                      </span>
+                      <div>
+                        {unit.status === 'sold' && (
+                          <p className="text-xs text-gray-500">
+                            {'->'} {unit.customer_name || 'Unknown customer'} {' · '}
+                            {unit.sold_at ? new Date(unit.sold_at).toLocaleDateString('en-IN') : '-'}
+                          </p>
+                        )}
+                        {unit.status === 'available' && (
+                          <p className="text-xs text-gray-400">In stock</p>
+                        )}
+                        {unit.status === 'returned' && (
+                          <p className="text-xs text-yellow-600">Returned to stock</p>
+                        )}
+                      </div>
+                    </div>
+                    <span
+                      className={`text-xs font-medium px-2 py-1 rounded-full ${
+                        unit.status === 'available' ? 'bg-green-100 text-green-700' :
+                        unit.status === 'sold'      ? 'bg-red-100 text-red-600' :
+                                                    'bg-yellow-100 text-yellow-700'
+                      }`}
+                    >
+                      {unit.status}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}

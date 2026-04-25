@@ -90,6 +90,28 @@ const createPurchase = async (req, res) => {
               cost_price = ?
           WHERE item_id = ?
         `, [item.quantity, item.cost_price, item.item_id]);
+        const prefix = item.item_name
+          .split(' ')
+          .map(w => w[0].toUpperCase())
+          .join('')
+          .slice(0, 4); // e.g. "Banarasi Silk Saree" → "BSS"
+
+        // Find current highest serial number for this item
+        const [existing] = await conn.query(
+          `SELECT COUNT(*) as cnt FROM stock_units WHERE item_id = ?`,
+          [item.item_id]
+        );
+        const startNum = existing[0].cnt + 1;
+
+        for (let i = 0; i < item.quantity; i++) {
+          const serial = `${prefix}-${String(startNum + i).padStart(3, '0')}`;
+          await conn.query(
+            `INSERT INTO stock_units
+              (item_id, purchase_id, serial_number, status)
+            VALUES (?, ?, ?, 'available')`,
+            [item.item_id, purchaseId, serial]
+          );
+        }
       }
     }
 

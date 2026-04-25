@@ -122,6 +122,30 @@ const createBill = async (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?)
       `, [billId, item.item_id || null, item.item_name, item.quantity, item.unit_price, lineTotal]);
 
+      // Mark individual units as sold (FIFO: oldest stock first)
+      if (item.item_id) {
+        const qty = Math.floor(item.quantity); // whole pieces only
+        const [availableUnits] = await conn.query(
+          `SELECT unit_id FROM stock_units
+           WHERE item_id = ? AND status = 'available'
+           ORDER BY created_at ASC
+           LIMIT ?`,
+          [item.item_id, qty]
+        );
+
+        for (const unit of availableUnits) {
+          await conn.query(
+            `UPDATE stock_units
+             SET status      = 'sold',
+                 bill_id     = ?,
+                 customer_id = ?,
+                 sold_at     = NOW()
+             WHERE unit_id = ?`,
+            [billId, customer_id, unit.unit_id]
+          );
+        }
+      }
+
       // Reduce stock if item_id provided
       if (item.item_id) {
         await conn.query(`

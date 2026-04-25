@@ -12,6 +12,7 @@ const paymentRoutes = require('./routes/payments');
 const reportRoutes = require('./routes/reports');
 const supplierRoutes = require('./routes/suppliers');
 const purchaseRoutes = require('./routes/purchases');
+const stockUnitRoutes = require('./routes/stockUnits');
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/purchases', purchaseRoutes);
+app.use('/api/stock-units', stockUnitRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Clothing Inventory API running' });
