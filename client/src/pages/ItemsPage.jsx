@@ -4,9 +4,10 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import {
   ShoppingBag, Plus, Search, Edit2,
-  Trash2, X, LogOut, Menu, Users, FileText
+  Trash2, X, LogOut, Menu, Users, FileText, Tag
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import StockUnitsModal from '../components/StockUnitsModal';
 
 const ItemsPage = () => {
   const [items,      setItems]      = useState([]);
@@ -119,6 +120,7 @@ const ItemsPage = () => {
       setStockLoading(false);
     }
   };
+  const [stockItem, setStockItem] = useState(null);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -250,6 +252,15 @@ const ItemsPage = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      setStockItem(item);
+                    }}
+                    className="flex items-center gap-1.5 text-xs text-indigo-600 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg border border-indigo-200 transition font-medium"
+                  >
+                    <Tag size={13} /> Serials ({item.stock_qty})
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
                       handleDelete(item.item_id);
                     }}
                     className="flex items-center justify-center border border-red-100 hover:bg-red-50 text-red-400 p-2 rounded-xl transition"
@@ -259,6 +270,14 @@ const ItemsPage = () => {
                 </div>
               </div>
             ))}
+
+            {stockItem && (
+              <StockUnitsModal
+                item={stockItem}
+                onClose={() => setStockItem(null)}
+              />
+            )}
+
           </div>
         )}
       </div>
