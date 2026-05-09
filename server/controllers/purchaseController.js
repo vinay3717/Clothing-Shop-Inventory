@@ -84,6 +84,29 @@ const createPurchase = async (req, res) => {
 
       // Increase stock
       if (item.item_id) {
+        // NEW: Check if item exists, create it if not
+        const [existingItem] = await conn.query(
+          `SELECT item_id FROM cloth_items WHERE item_id = ? AND is_active = 1`,
+          [item.item_id]
+        );
+
+        if (existingItem.length === 0) {
+          const newItemId = item.item_id || require('crypto').randomUUID();
+          await conn.query(
+            `INSERT INTO cloth_items 
+               (item_id, name, category, price, cost_price, stock_qty, color, sku_code, is_active)
+             VALUES (?, ?, 'Other', ?, ?, 0, 'Various', ?, 1)`,
+            [
+              newItemId,
+              item.item_name,
+              item.cost_price * 1.5,
+              item.cost_price,
+              'PUR-' + Date.now()
+            ]
+          );
+          item.item_id = newItemId;
+        }
+
         await conn.query(`
           UPDATE cloth_items
           SET stock_qty  = stock_qty + ?,

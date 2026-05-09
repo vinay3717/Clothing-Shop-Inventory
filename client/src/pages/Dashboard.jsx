@@ -203,7 +203,7 @@ const Dashboard = () => {
               </div>
             </div>
             <p className="text-2xl font-bold text-gray-800">{data?.total_customers || 0}</p>
-            <p className="text-xs text-gray-400 mt-1">{data?.total_items || 0} cloth items</p>
+            <p className="text-xs text-gray-400 mt-1">{data?.total_customers || 0} registered</p>
           </div>
 
         </div>
