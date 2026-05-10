@@ -28,7 +28,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/purchases', purchaseRoutes);
-app.use('/api/stock-units', stockUnitRoutes);
+app.use('/api/stock-units', require('./routes/stockUnits'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Clothing Inventory API running' });

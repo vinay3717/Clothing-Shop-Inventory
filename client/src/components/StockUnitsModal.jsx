@@ -19,6 +19,7 @@ export default function StockUnitsModal({ item, onClose }) {
     try {
       const { data } = await api.get(`/stock-units/item/${item.item_id}`);
       setUnits(data.units);
+      console.log('Units received:', data.units);
       setSummary(data.summary);
     } catch {
       toast.error('Failed to load serial numbers');
@@ -203,15 +204,16 @@ export default function StockUnitsModal({ item, onClose }) {
                                   rounded-full capitalize ${statusBadge[unit.status]}`}>
                   {unit.status}
                 </span>
-                {unit.status === 'sold' && (
+                {unit.status?.trim().toLowerCase() === 'sold' && (
                   <button
-                    onClick={() => handleReturn(unit)}
-                    title="Mark as returned"
-                    className="p-1.5 hover:bg-red-50 text-red-400
-                               hover:text-red-600 rounded-lg transition"
+                     onClick={() => handleReturn(unit)}
+                      title="Mark as returned"
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium
+                                 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700
+                                 border border-red-200 rounded-lg transition"
                   >
-                    <RotateCcw size={14}/>
-                  </button>
+                 <RotateCcw size={12}/> Return
+                 </button>
                 )}
               </div>
             </div>
